@@ -1,10 +1,10 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { AlertCircle, CheckCircle2 } from "lucide-react"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { createClient } from "@/lib/supabase-client"
 
 type SyncStatusData = {
   last_sync: string | null
@@ -21,7 +21,7 @@ export function SyncStatus() {
     message: "No sync has been performed yet",
   })
   const [loading, setLoading] = useState(true)
-  const supabase = createClientComponentClient()
+  const supabase = createClient()
 
   useEffect(() => {
     const fetchSyncStatus = async () => {

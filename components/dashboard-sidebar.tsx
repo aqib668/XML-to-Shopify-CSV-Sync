@@ -2,7 +2,6 @@
 
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { BarChart, Clock, FileText, Home, LogOut, RefreshCw, Settings, User } from "lucide-react"
 
 import {
@@ -16,12 +15,13 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar"
 import { useToast } from "@/hooks/use-toast"
+import { createClient } from "@/lib/supabase-client"
 
 export function DashboardSidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const { toast } = useToast()
-  const supabase = createClientComponentClient()
+  const supabase = createClient()
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()

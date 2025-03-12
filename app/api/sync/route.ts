@@ -3,9 +3,11 @@ import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
 import { XMLParser } from "fast-xml-parser"
 import { v4 as uuidv4 } from "uuid"
+import { supabaseAdmin } from "@/lib/supabase-admin"
 
 export async function POST(request: Request) {
   try {
+    // Regular client for auth checks
     const cookieStore = cookies()
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
 
@@ -24,8 +26,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "XML URL is required" }, { status: 400 })
     }
 
-    // Log the start of sync
-    await supabase.from("logs").insert({
+    // Use admin client for operations that need to bypass RLS
+    await supabaseAdmin.from("logs").insert({
       id: uuidv4(),
       event: "Sync Started",
       details: `Starting sync from ${xmlUrl}`,
@@ -48,7 +50,7 @@ export async function POST(request: Request) {
     const xmlData = parser.parse(xmlText)
 
     // Get existing SKUs from database
-    const { data: existingProducts } = await supabase.from("products").select("sku")
+    const { data: existingProducts } = await supabaseAdmin.from("products").select("sku")
 
     const existingSkus = new Set(existingProducts?.map((p) => p.sku) || [])
 
@@ -60,7 +62,7 @@ export async function POST(request: Request) {
 
     // Save new products to database
     if (newProducts.length > 0) {
-      await supabase.from("products").insert(
+      await supabaseAdmin.from("products").insert(
         newProducts.map((product) => ({
           id: uuidv4(),
           sku: product.sku,
@@ -76,7 +78,7 @@ export async function POST(request: Request) {
     }
 
     // Update sync status
-    await supabase.from("sync_status").insert({
+    await supabaseAdmin.from("sync_status").insert({
       id: uuidv4(),
       status: "success",
       new_products_count: newProducts.length,
@@ -84,7 +86,7 @@ export async function POST(request: Request) {
     })
 
     // Log completion
-    await supabase.from("logs").insert({
+    await supabaseAdmin.from("logs").insert({
       id: uuidv4(),
       event: "Sync Completed",
       details: `Sync completed successfully. Found ${newProducts.length} new products.`,
@@ -99,23 +101,24 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("Sync error:", error)
 
-    // Log error
-    const cookieStore = cookies()
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
+    // Log error with admin client
+    try {
+      await supabaseAdmin.from("logs").insert({
+        id: uuidv4(),
+        event: "Sync Error",
+        details: `Error during sync: ${error instanceof Error ? error.message : String(error)}`,
+        status: "error",
+      })
 
-    await supabase.from("logs").insert({
-      id: uuidv4(),
-      event: "Sync Error",
-      details: `Error during sync: ${error instanceof Error ? error.message : String(error)}`,
-      status: "error",
-    })
-
-    await supabase.from("sync_status").insert({
-      id: uuidv4(),
-      status: "error",
-      new_products_count: 0,
-      message: `Sync failed: ${error instanceof Error ? error.message : String(error)}`,
-    })
+      await supabaseAdmin.from("sync_status").insert({
+        id: uuidv4(),
+        status: "error",
+        new_products_count: 0,
+        message: `Sync failed: ${error instanceof Error ? error.message : String(error)}`,
+      })
+    } catch (logError) {
+      console.error("Failed to log error:", logError)
+    }
 
     return NextResponse.json(
       { error: "Failed to sync products", details: error instanceof Error ? error.message : String(error) },

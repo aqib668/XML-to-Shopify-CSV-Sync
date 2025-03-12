@@ -2,9 +2,11 @@ import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs"
 import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
 import { v4 as uuidv4 } from "uuid"
+import { supabaseAdmin } from "@/lib/supabase-admin"
 
 export async function POST(request: Request) {
   try {
+    // Regular client for auth checks
     const cookieStore = cookies()
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
 
@@ -26,8 +28,8 @@ export async function POST(request: Request) {
     // Calculate next run time
     const nextRun = calculateNextRun(time, days)
 
-    // Update schedule in database
-    const { error } = await supabase.from("sync_schedule").upsert({
+    // Update schedule in database using admin client
+    const { error } = await supabaseAdmin.from("sync_schedule").upsert({
       id: "default", // Using a constant ID for the single schedule record
       enabled,
       time,
@@ -40,8 +42,8 @@ export async function POST(request: Request) {
       throw new Error(`Failed to update schedule: ${error.message}`)
     }
 
-    // Log schedule update
-    await supabase.from("logs").insert({
+    // Log schedule update using admin client
+    await supabaseAdmin.from("logs").insert({
       id: uuidv4(),
       event: "Schedule Updated",
       details: `Schedule ${enabled ? "enabled" : "disabled"} for ${days.join(", ")} at ${time}`,
@@ -56,16 +58,17 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("Schedule update error:", error)
 
-    // Log error
-    const cookieStore = cookies()
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
-
-    await supabase.from("logs").insert({
-      id: uuidv4(),
-      event: "Schedule Update Error",
-      details: `Error updating schedule: ${error instanceof Error ? error.message : String(error)}`,
-      status: "error",
-    })
+    // Log error using admin client
+    try {
+      await supabaseAdmin.from("logs").insert({
+        id: uuidv4(),
+        event: "Schedule Update Error",
+        details: `Error updating schedule: ${error instanceof Error ? error.message : String(error)}`,
+        status: "error",
+      })
+    } catch (logError) {
+      console.error("Failed to log error:", logError)
+    }
 
     return NextResponse.json(
       { error: "Failed to update schedule", details: error instanceof Error ? error.message : String(error) },

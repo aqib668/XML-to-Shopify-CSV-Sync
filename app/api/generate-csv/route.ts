@@ -3,9 +3,11 @@ import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
 import { v4 as uuidv4 } from "uuid"
 import Papa from "papaparse"
+import { supabaseAdmin } from "@/lib/supabase-admin"
 
 export async function GET(request: Request) {
   try {
+    // Regular client for auth checks
     const cookieStore = cookies()
     const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
 
@@ -17,23 +19,23 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Log the start of CSV generation
-    await supabase.from("logs").insert({
+    // Log the start of CSV generation using admin client
+    await supabaseAdmin.from("logs").insert({
       id: uuidv4(),
       event: "CSV Generation Started",
       details: "Starting to generate Shopify CSV",
       status: "info",
     })
 
-    // Get products from database
-    const { data: products, error } = await supabase.from("products").select("*").eq("exported", false)
+    // Get products from database using admin client
+    const { data: products, error } = await supabaseAdmin.from("products").select("*").eq("exported", false)
 
     if (error) {
       throw new Error(`Failed to fetch products: ${error.message}`)
     }
 
     if (!products || products.length === 0) {
-      await supabase.from("logs").insert({
+      await supabaseAdmin.from("logs").insert({
         id: uuidv4(),
         event: "CSV Generation Completed",
         details: "No new products to export",
@@ -49,12 +51,12 @@ export async function GET(request: Request) {
     // Generate CSV
     const csv = Papa.unparse(csvData)
 
-    // Mark products as exported
+    // Mark products as exported using admin client
     const productIds = products.map((p) => p.id)
-    await supabase.from("products").update({ exported: true }).in("id", productIds)
+    await supabaseAdmin.from("products").update({ exported: true }).in("id", productIds)
 
-    // Log completion
-    await supabase.from("logs").insert({
+    // Log completion using admin client
+    await supabaseAdmin.from("logs").insert({
       id: uuidv4(),
       event: "CSV Generation Completed",
       details: `Successfully generated CSV with ${products.length} products`,
@@ -71,16 +73,17 @@ export async function GET(request: Request) {
   } catch (error) {
     console.error("CSV generation error:", error)
 
-    // Log error
-    const cookieStore = cookies()
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
-
-    await supabase.from("logs").insert({
-      id: uuidv4(),
-      event: "CSV Generation Error",
-      details: `Error generating CSV: ${error instanceof Error ? error.message : String(error)}`,
-      status: "error",
-    })
+    // Log error using admin client
+    try {
+      await supabaseAdmin.from("logs").insert({
+        id: uuidv4(),
+        event: "CSV Generation Error",
+        details: `Error generating CSV: ${error instanceof Error ? error.message : String(error)}`,
+        status: "error",
+      })
+    } catch (logError) {
+      console.error("Failed to log error:", logError)
+    }
 
     return NextResponse.json(
       { error: "Failed to generate CSV", details: error instanceof Error ? error.message : String(error) },
