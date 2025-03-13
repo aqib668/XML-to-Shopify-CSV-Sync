@@ -5,6 +5,10 @@ import { v4 as uuidv4 } from "uuid"
 import Papa from "papaparse"
 import { supabaseAdmin } from "@/lib/supabase-admin"
 
+if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  throw new Error('Required environment variables are missing')
+}
+
 export async function GET(request: Request) {
   try {
     // Regular client for auth checks
