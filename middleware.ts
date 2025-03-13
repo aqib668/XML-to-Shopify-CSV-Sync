@@ -6,8 +6,23 @@ import type { NextRequest } from "next/server"
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next()
 
+  // Ensure environment variables are correctly loaded
+  const supabaseUrl = process.env.SUPABASE_URL;
+  if (!supabaseUrl) {
+    throw new Error('supabaseUrl is required.');
+  }
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  // Debugging: Log the environment variables
+  console.log('NEXT_PUBLIC_SUPABASE_URL:', supabaseUrl);
+  console.log('NEXT_PUBLIC_SUPABASE_ANON_KEY:', supabaseKey);
+
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error('Missing Supabase URL or Key');
+  }
+
   // Create a Supabase client configured to use cookies
-  const supabase = createMiddlewareClient({ req, res })
+  const supabase = createMiddlewareClient({ req, res });
 
   // Refresh session if expired - required for Server Components
   await supabase.auth.getSession()
