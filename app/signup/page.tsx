@@ -2,8 +2,8 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useState } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Loader2, Package } from "lucide-react"
 
@@ -11,54 +11,39 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { signIn, supabase } from "@/lib/supabase"
+import { signUp } from "@/lib/supabase"
 
-export default function LoginPage() {
+export default function SignupPage() {
   const router = useRouter()
-  const searchParams = useSearchParams()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [fullName, setFullName] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [message, setMessage] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
 
-  // Check for message in URL params (e.g., after email confirmation)
-  useEffect(() => {
-    const message = searchParams.get("message")
-    if (message) {
-      setMessage(message)
-    }
-
-    // Check if we already have a session
-    const checkSession = async () => {
-      const { data } = await supabase.auth.getSession()
-      if (data.session) {
-        router.push("/")
-      }
-    }
-
-    checkSession()
-  }, [searchParams, router])
-
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     setError(null)
 
     try {
-      const { data, error } = await signIn(email, password)
+      const { data, error } = await signUp(email, password)
 
       if (error) {
         throw error
       }
 
-      if (data.session) {
-        router.push("/")
-        router.refresh()
-      }
+      setSuccess(true)
+
+      // In a real app, you might want to redirect to a verification page
+      // For now, we'll just show a success message
+      setTimeout(() => {
+        router.push("/login")
+      }, 3000)
     } catch (err: any) {
-      console.error("Login error:", err)
-      setError(err.message || "Failed to login. Please check your credentials.")
+      console.error("Signup error:", err)
+      setError(err.message || "Failed to create account. Please try again.")
     } finally {
       setIsLoading(false)
     }
@@ -71,15 +56,29 @@ export default function LoginPage() {
           <div className="flex justify-center mb-4">
             <Package className="h-10 w-10 text-primary" />
           </div>
-          <CardTitle className="text-2xl text-center">Shopify Importer</CardTitle>
-          <CardDescription className="text-center">Enter your credentials to access your account</CardDescription>
+          <CardTitle className="text-2xl text-center">Create an Account</CardTitle>
+          <CardDescription className="text-center">Enter your information to create an account</CardDescription>
         </CardHeader>
-        <form onSubmit={handleLogin}>
+        <form onSubmit={handleSignup}>
           <CardContent className="space-y-4">
             {error && <div className="p-3 text-sm bg-destructive/10 text-destructive rounded-md">{error}</div>}
 
-            {message && <div className="p-3 text-sm bg-green-100 text-green-800 rounded-md">{message}</div>}
+            {success && (
+              <div className="p-3 text-sm bg-green-100 text-green-800 rounded-md">
+                Account created successfully! Please check your email for a confirmation link.
+              </div>
+            )}
 
+            <div className="space-y-2">
+              <Label htmlFor="full-name">Full Name</Label>
+              <Input
+                id="full-name"
+                placeholder="John Doe"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                required
+              />
+            </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -92,12 +91,7 @@ export default function LoginPage() {
               />
             </div>
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password">Password</Label>
-                <Link href="/forgot-password" className="text-xs text-primary hover:underline">
-                  Forgot password?
-                </Link>
-              </div>
+              <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
                 type="password"
@@ -105,23 +99,24 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
               />
+              <p className="text-xs text-muted-foreground">Password must be at least 8 characters long</p>
             </div>
           </CardContent>
           <CardFooter className="flex flex-col">
-            <Button className="w-full" type="submit" disabled={isLoading}>
+            <Button className="w-full" type="submit" disabled={isLoading || success}>
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Signing in...
+                  Creating account...
                 </>
               ) : (
-                "Sign in"
+                "Create account"
               )}
             </Button>
             <p className="mt-4 text-center text-sm text-muted-foreground">
-              Don't have an account?{" "}
-              <Link href="/signup" className="text-primary hover:underline">
-                Sign up
+              Already have an account?{" "}
+              <Link href="/login" className="text-primary hover:underline">
+                Sign in
               </Link>
             </p>
           </CardFooter>
