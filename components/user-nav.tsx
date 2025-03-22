@@ -23,7 +23,6 @@ export function UserNav() {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
-  // Update the getProfile function to handle errors better
   useEffect(() => {
     async function loadProfile() {
       try {
@@ -35,15 +34,18 @@ export function UserNav() {
         }
 
         const userId = sessionData.session.user.id
+        const userEmail = sessionData.session.user.email || ""
+
+        // Try to get profile
         const { data, error } = await getProfile(userId)
 
         if (error) {
           console.error("Failed to load profile:", error)
-          // Create a minimal profile object with just email to prevent UI errors
-          const email = sessionData.session.user.email || "user@example.com"
+
+          // Create a minimal profile with the user's email
           setProfile({
             id: userId,
-            email: email,
+            email: userEmail,
             full_name: null,
             avatar_url: null,
             company: null,
@@ -54,6 +56,16 @@ export function UserNav() {
 
         if (data) {
           setProfile(data)
+        } else {
+          // If no data returned but no error, create minimal profile
+          setProfile({
+            id: userId,
+            email: userEmail,
+            full_name: null,
+            avatar_url: null,
+            company: null,
+            created_at: new Date().toISOString(),
+          })
         }
       } catch (err) {
         console.error("Failed to load profile:", err)

@@ -36,21 +36,52 @@ export default function ProfilePage() {
         }
 
         const userId = sessionData.session.user.id
+        const userEmail = sessionData.session.user.email || ""
+
+        // Try to get profile
         const { data, error } = await getProfile(userId)
 
         if (error) {
+          // If error is about missing table, suggest database setup
+          if (error.message?.includes("doesn't exist") || error.message?.includes("relation")) {
+            setError("Database tables not set up correctly. Please visit /api/setup-database to fix this issue.")
+            setEmail(userEmail)
+            return
+          }
+
           throw error
         }
 
         if (data) {
           setProfile(data)
           setFullName(data.full_name || "")
-          setEmail(data.email)
+          setEmail(data.email || userEmail)
           setCompany(data.company || "")
+        } else {
+          // If no data but no error, use session email
+          setProfile({
+            id: userId,
+            email: userEmail,
+            full_name: null,
+            avatar_url: null,
+            company: null,
+            created_at: new Date().toISOString(),
+          })
+          setEmail(userEmail)
         }
       } catch (err: any) {
         console.error("Failed to load profile:", err)
         setError(err.message || "Failed to load profile")
+
+        // Try to at least set the email from session
+        try {
+          const { data: sessionData } = await getSession()
+          if (sessionData.session?.user?.email) {
+            setEmail(sessionData.session.user.email)
+          }
+        } catch (e) {
+          console.error("Could not get email from session:", e)
+        }
       } finally {
         setIsLoading(false)
       }
@@ -116,7 +147,20 @@ export default function ProfilePage() {
           </CardHeader>
           <form onSubmit={handleUpdateProfile}>
             <CardContent className="space-y-4">
-              {error && <div className="p-3 text-sm bg-destructive/10 text-destructive rounded-md">{error}</div>}
+              {error && (
+                <div className="p-3 text-sm bg-destructive/10 text-destructive rounded-md">
+                  {error}
+                  {error.includes("database") && (
+                    <Button
+                      variant="link"
+                      className="p-0 h-auto text-destructive underline"
+                      onClick={() => (window.location.href = "/api/setup-database")}
+                    >
+                      Click here to fix database issues
+                    </Button>
+                  )}
+                </div>
+              )}
 
               {success && (
                 <div className="p-3 text-sm bg-green-100 text-green-800 rounded-md">Profile updated successfully!</div>

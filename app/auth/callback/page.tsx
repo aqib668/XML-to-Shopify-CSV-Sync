@@ -15,35 +15,32 @@ export default function AuthCallbackPage() {
   useEffect(() => {
     async function handleAuthCallback() {
       try {
-        // Check if we have a hash in the URL
-        if (window.location.hash) {
-          setMessage("Authenticating...")
+        // Get the URL hash or query parameters
+        const hash = window.location.hash
+        const query = window.location.search
 
-          // The hash contains the access token and other auth info
-          // Supabase client will automatically handle this
-          const { data, error } = await supabase.auth.getSession()
+        console.log("Auth callback triggered", { hash, query })
+        setMessage("Authenticating...")
 
-          if (error) {
-            throw error
-          }
+        // Exchange the auth code for a session
+        const { data, error } = await supabase.auth.getSession()
 
-          if (data.session) {
-            setMessage("Authentication successful! Redirecting...")
+        if (error) {
+          throw error
+        }
 
-            // Redirect to dashboard after successful authentication
-            setTimeout(() => {
-              router.push("/")
-              router.refresh()
-            }, 1500)
-          } else {
-            throw new Error("No session found")
-          }
-        } else {
-          // No hash, redirect to login
-          setMessage("No authentication data found. Redirecting to login...")
+        if (data.session) {
+          setMessage("Authentication successful! Redirecting...")
+          console.log("Session obtained successfully")
+
+          // Redirect to dashboard after successful authentication
           setTimeout(() => {
-            router.push("/login")
+            router.push("/")
+            router.refresh()
           }, 1500)
+        } else {
+          console.log("No session found after auth callback")
+          throw new Error("No session found")
         }
       } catch (err: any) {
         console.error("Auth callback error:", err)
@@ -51,7 +48,7 @@ export default function AuthCallbackPage() {
         setMessage("Authentication failed. Redirecting to login...")
 
         setTimeout(() => {
-          router.push("/login")
+          router.push("/login?error=" + encodeURIComponent(err.message || "Authentication failed"))
         }, 3000)
       }
     }

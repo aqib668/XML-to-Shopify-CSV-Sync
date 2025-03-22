@@ -1,11 +1,7 @@
 import { createClient } from "@supabase/supabase-js"
+import { SUPABASE_URL, SUPABASE_ANON_KEY, AUTH_REDIRECT_URL } from "./config"
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://cafqfaqreciqoyvhsqun.supabase.co"
-const supabaseAnonKey =
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNhZnFmYXFyZWNpcW95dmhzcXVuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI1MjEwOTUsImV4cCI6MjA1ODA5NzA5NX0.X5hsJeckWF5sEZNe2Cu3AW9_hd2vVQRA7Mer_5ctGOQ"
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     flowType: "pkce",
     autoRefreshToken: true,
@@ -59,7 +55,7 @@ export async function signUp(email: string, password: string) {
     email,
     password,
     options: {
-      emailRedirectTo: `${window.location.origin}/auth/callback`,
+      emailRedirectTo: AUTH_REDIRECT_URL,
     },
   })
   return { data, error }
